@@ -1,4 +1,4 @@
-# **C\_rho: Counterfactual Estimation with Cross-World Assumptions**
+# **Counterfactual Estimation with Cross-World Assumptions**
 
 [![R](https://img.shields.io/badge/R-available-blue)]()
 [![Python](https://img.shields.io/badge/Python-available-green)]()
@@ -9,7 +9,7 @@ The method combines Conformal Quantile Regression (CQR) with bootstrap aggregati
 <img width="583" height="259" alt="image" src="https://github.com/user-attachments/assets/e40969a4-e702-4370-8eed-6206838e4bb7" />
 
 
-## **What is C\_rho function?**
+## **What is C\_rho function and how to use it?**
 
 `C_rho` estimates the **counterfactual mean** and **interval** for each observation given:
 
