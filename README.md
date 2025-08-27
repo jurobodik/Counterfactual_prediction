@@ -86,10 +86,7 @@ result <- C_rho(
   treatment = treatment,
   Y_obs = Y_obs,
   rho = rho,
-  CI = FALSE,
-  lambda = NULL,
-  bootstraps_for_stable_lambda = 1,
-  bootstraps_for_mu = 10
+  CI = FALSE
 )
 
 # 3) Evaluate results
