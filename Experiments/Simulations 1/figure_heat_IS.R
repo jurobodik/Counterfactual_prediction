@@ -1,5 +1,5 @@
 # ==== MSE rank heatmap (legend right + flattened rows) ====
-mse_final <- read.csv("intervalscore_wide_incremental.csv", stringsAsFactors = FALSE)
+mse_final <- read.csv("intervalscore_results.csv", stringsAsFactors = FALSE)
 
 library(dplyr)
 library(tidyr)
