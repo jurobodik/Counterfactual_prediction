@@ -1,0 +1,514 @@
+#Figure: C_rho for different rho values 
+library(MASS)
+library(qgam)
+library(ggplot2)
+library(quantregForest)
+library(patchwork)
+library(grid) 
+set.seed(2)
+
+rho_true = 0.5
+n <- 5000
+d <- 1
+lambda = NULL
+CI = FALSE
+
+
+data_synthetic_for_picture <- function(n = 1000, 
+                           d = 2, 
+                           rho, 
+                           sigma_1 = 1, 
+                           sigma_2 = 4, 
+                           constant_propensity = FALSE, 
+                           copula_type = "gaussian", #choices: "gaussian", "clayton", "t", "gumbel"
+                           marginal = "gaussian"){ #choices: "gaussian", "laplace", "t", "laplace", "chisq"
+  # generate random 1D and 2D functions
+  random_function_1d <- function(freq = 0.1) {
+    s = seq(-10, 10, length.out = 1001)
+    f <- long_grid(s)
+    f$noise <- rep(0, length(s))
+    while (all(f$noise[300:600] == 0)) {
+      f$noise <- gen_perlin(f$x, frequency = freq, fractal = 'rigid-multi')
+    }
+    amplitude = 10 / (max(f$noise) + 1)
+    return(f$noise * amplitude)
+  }
+  
+  evaluation_of_f_1d <- function(f, X1) {
+    minim = min(X1)
+    maxim = max(X1)
+    sapply(X1, function(x) f[round((x - minim) * 1000 / (maxim - minim) + 1)])
+  }
+  
+  random_function_2d <- function(freq = 0.001) {
+    f = noise_perlin(c(1001, 1001), frequency = freq, fractal = 'fbm', octaves = 2, lacunarity = 2, gain = 0.4)
+    f = f^2
+    amplitude = 10 / max(f)
+    return(f * amplitude)
+  }
+  
+  evaluation_of_f_2d <- function(f, X1, X2) {
+    minim_x = min(X1)
+    maxim_x = max(X1)
+    minim_y = min(X2)
+    maxim_y = max(X2)
+    
+    mapply(function(x, y) {
+      xx = round((x - minim_x) * 1000 / (maxim_x - minim_x) + 1)
+      yy = round((y - minim_y) * 1000 / (maxim_y - minim_y) + 1)
+      f[xx, yy]
+    }, X1, X2)
+  }
+  
+  # Covariates and CATE
+  if (d == 1) {
+    X = runif(n, -1, 1)
+    CATE = 8+evaluation_of_f_1d(random_function_1d(), X)
+    #CATE = 5 + X
+    mu = 1 + 3 * X + (1.3*X)^3
+  } else {
+    Sigma <- matrix(0.25, nrow = d, ncol = d)
+    diag(Sigma) <- rep(1, d)
+    tilde_X <- mvrnorm(n, mu = rep(0, d), Sigma = Sigma)
+    X <- pnorm(tilde_X)
+    tau = random_function_2d()
+    CATE = evaluation_of_f_2d(tau, X[,1], X[,2])
+    beta = rnorm(d)
+    mu = X %*% beta
+  }
+  
+  # Error generation using copulas
+  generate_errors <- function(n, rho, sigma_1 , sigma_2, copula_type = "gaussian", marginal = "gaussian") {
+    qlaplace <- function(p) {ifelse(p < 0.5, log(2 * p), -log(2 * (1 - p)))}
+    
+    tau = (2 / pi) * asin(rho); #relation between correlation and parameter in clayton/gumbel copula
+    if(tau <= -1) tau = -0.99; if(tau >= 1) tau = 0.99 #soft fix for edge cases
+    cop <- switch(copula_type,
+                  "gaussian" = normalCopula(param = rho, dim = 2),  # directly use rho
+                  "t"        = tCopula(param = rho, dim = 2, df = 3),  # also takes rho directly
+                  "clayton"  = claytonCopula(param = iTau(claytonCopula(), tau), dim = 2), #parameter and rho have this relation: (2 / pi) * asin(rho), althoguh rho is kendels tau not pearson
+                  "gumbel"   = gumbelCopula(param = iTau(gumbelCopula(), tau), dim = 2),   #parameter and rho have this relation: (2 / pi) * asin(rho)
+                  stop("Unsupported copula type.")
+    )
+    
+    u <- rCopula(n, cop)
+    
+    transform_marginal <- function(u_vec, type) {
+      switch(type,
+             "gaussian" = qnorm(u_vec),
+             "t" = qt(u_vec, df = 3),
+             "laplace" = qlaplace(u_vec),
+             "chisq" = qchisq(u_vec, df = 3),
+             stop("Unsupported marginal type.")
+      )
+    }
+    
+    eps1 <- transform_marginal(u[, 1], marginal) * sqrt(sigma_1)
+    eps2 <- transform_marginal(u[, 2], marginal) * sqrt(sigma_2)
+    
+    data.frame(eps1, eps2)
+  }
+  
+  eps <- generate_errors(n, rho, sigma_1, sigma_2, copula_type, marginal)
+  epsilon1 <- eps[,1]
+  epsilon2 <- eps[,2]
+  
+  Y0 <- mu + epsilon1
+  Y1 <- mu + CATE + epsilon2
+  
+  if (!constant_propensity) {
+    propensity_score = if (d == 1) (1 + abs(X)) / 4 else (1 + abs(X[,1])) / 4
+    treatment = rbinom(n, 1, 1 - propensity_score)
+  } else {
+    treatment = sample(c(0, 1), n, replace = TRUE)
+  }
+  
+  Y_obs = ifelse(treatment == 1, Y1, Y0)
+  Y_cf = ifelse(treatment == 0, Y1, Y0)
+  
+  
+  return(data.frame(X, Y0 = Y0, Y1 = Y1, Y_obs = Y_obs, Y_cf = Y_cf, treatment = treatment))
+}
+
+
+data = data_synthetic_for_picture(n = n, d = d, rho = rho_true,
+                      constant_propensity = TRUE, sigma_1=1, sigma_2 = 4)
+
+X <- as.data.frame(data[, 1:d])  
+treatment <- data$treatment
+Y <- data$Y_obs
+new_points = X[treatment == 0, ]
+
+
+
+CQR <- function(X, Y, new_points,
+                desired_coverage = 0.9,
+                train_calib_split = 0.8,
+                CQR_qr = 'auto',
+                CQR_type = 'multiplicative',
+                CI = FALSE,
+                B = 20,  # Number of bootstrap replicates
+                ci_level = 0.95) {
+  
+  if (CQR_qr == 'Naive') CQR_qr <- 'naive'
+  if (CQR_qr == 'auto') CQR_qr <- if (ncol(data.frame(X)) > 5) 'RF' else 'qGAM'
+  if (!CQR_qr %in% c('RF', 'qGAM', 'naive')) stop("Unsupported CQR_qr method")
+  
+  d <- ncol(data.frame(X))
+  X <- data.frame(X); Y <- as.numeric(Y)
+  new_points <- data.frame(new_points)
+  names(X) <- names(new_points) <- paste0("X", 1:d)
+  
+  # ------------------ Split ------------------
+  n <- nrow(X)
+  train_idx <- 1:(n * train_calib_split)
+  calib_idx <- (n * train_calib_split + 1):n
+  
+  X_train <- X[train_idx, , drop = FALSE]
+  Y_train <- Y[train_idx]
+  X_calib <- X[calib_idx, , drop = FALSE]
+  Y_calib <- Y[calib_idx]
+  
+  all_X <- rbind(X, new_points)
+  
+  # ------------------ Formula ------------------
+  create_formula <- function(X, smoothing = TRUE) {
+    terms <- sapply(1:ncol(X), function(j) {
+      if (length(unique(X[, j])) > 9 && smoothing) paste0("s(X", j, ")")
+      else paste0("as.factor(X", j, ")")
+    })
+    reformulate(terms, response = "Y")
+  }
+  
+  if (CQR_qr == 'qGAM') {
+    formula <- create_formula(X_train)
+    invisible(capture.output({
+      fit_95 <- qgam(formula, data = data.frame(X_train, Y = Y_train), qu = (1 + desired_coverage) / 2)
+      fit_50 <- qgam(formula, data = data.frame(X_train, Y = Y_train), qu = 0.5)
+      fit_05 <- qgam(formula, data = data.frame(X_train, Y = Y_train), qu = (1 - desired_coverage) / 2)
+    }))
+    pred_95 <- predict(fit_95, newdata = all_X)
+    pred_50 <- predict(fit_50, newdata = all_X)
+    pred_05 <- predict(fit_05, newdata = all_X)
+  } else {
+    qrf <- quantregForest(x = X_train, y = Y_train, ntree = 1000, nodesize = 5)
+    pred_95 <- predict(qrf, newdata = all_X, what = (1 + desired_coverage) / 2)
+    pred_50 <- predict(qrf, newdata = all_X, what = 0.5)
+    pred_05 <- predict(qrf, newdata = all_X, what = (1 - desired_coverage) / 2)
+  }
+  
+  pred_95 <- pmax(pred_95, pred_50)
+  pred_05 <- pmin(pred_05, pred_50)
+  
+  n_calib <- length(Y_calib)
+  calib_idx_all <- calib_idx
+  
+  if (CQR_type == "multiplicative") {
+    l <- pred_50 - pred_05
+    u <- pred_95 - pred_50
+    scores <- mapply(function(i) {
+      idx <- calib_idx_all[i]
+      max((pred_50[idx] - Y_calib[i]) / l[idx], (Y_calib[i] - pred_50[idx]) / u[idx])
+    }, seq_len(n_calib))
+    gamma <- quantile(scores, probs = desired_coverage)
+    lower <- pred_50 - gamma * (pred_50 - pred_05)
+    upper <- pred_50 + gamma * (pred_95 - pred_50)
+  } else if (CQR_type == "additive") {
+    scores <- mapply(function(i) {
+      idx <- calib_idx_all[i]
+      max(pred_05[idx] - Y_calib[i], Y_calib[i] - pred_95[idx])
+    }, seq_len(n_calib))
+    gamma <- quantile(scores, probs = desired_coverage)
+    lower <- pred_05 - gamma
+    upper <- pred_95 + gamma
+  } else if (CQR_type == "naive") {
+    scores <- abs(pred_50[calib_idx_all] - Y_calib)
+    gamma <- quantile(scores, probs = desired_coverage)
+    lower <- pred_50 - gamma
+    upper <- pred_50 + gamma
+  } else {
+    stop("Unsupported CQR_type")
+  }
+  
+  m <- nrow(new_points)
+  prediction_f <- tail(pred_50, m)
+  lower <- tail(lower, m)
+  upper <- tail(upper, m)
+  
+  # ------------------ Bootstrap CI ------------------
+  if (CI) {
+    boot_preds_05 <- matrix(NA, nrow = m, ncol = B)
+    boot_preds_50 <- matrix(NA, nrow = m, ncol = B)
+    boot_preds_95 <- matrix(NA, nrow = m, ncol = B)
+    
+    for (b in 1:B) {
+      samp_idx <- sample(seq_along(Y_calib), replace = TRUE)
+      if (CQR_qr == 'qGAM') {
+        invisible(capture.output({
+          fit_95_b <- qgam(formula, data = data.frame(X_calib[samp_idx, , drop = FALSE], Y = Y_calib[samp_idx]), qu = (1 + desired_coverage) / 2)
+          fit_50_b <- qgam(formula, data = data.frame(X_calib[samp_idx, , drop = FALSE], Y = Y_calib[samp_idx]), qu = 0.5)
+          fit_05_b <- qgam(formula, data = data.frame(X_calib[samp_idx, , drop = FALSE], Y = Y_calib[samp_idx]), qu = (1 - desired_coverage) / 2)
+        }))
+        boot_preds_95[, b] <- predict(fit_95_b, newdata = new_points)
+        boot_preds_50[, b] <- predict(fit_50_b, newdata = new_points)
+        boot_preds_05[, b] <- predict(fit_05_b, newdata = new_points)
+      } else {
+        X_boot <- data.frame(X_calib[samp_idx, , drop = FALSE])
+        names(X_boot) <- names(X_calib)
+        qrf_b <- quantregForest(x = X_boot, y = Y_calib[samp_idx], ntree = 500)
+        boot_preds_95[, b] <- predict(qrf_b, newdata = new_points, what = (1 + desired_coverage) / 2)
+        boot_preds_50[, b] <- predict(qrf_b, newdata = new_points, what = 0.5)
+        boot_preds_05[, b] <- predict(qrf_b, newdata = new_points, what = (1 - desired_coverage) / 2)
+      }
+    }
+    
+    # CI bands for each quantile
+    ci_lower_05 <- apply(boot_preds_05, 1, quantile, probs = (1 - ci_level) / 2)
+    ci_upper_05 <- apply(boot_preds_05, 1, quantile, probs = 1 - (1 - ci_level) / 2)
+    
+    ci_lower_50 <- apply(boot_preds_50, 1, quantile, probs = (1 - ci_level) / 2)
+    ci_upper_50 <- apply(boot_preds_50, 1, quantile, probs = 1 - (1 - ci_level) / 2)
+    
+    ci_lower_95 <- apply(boot_preds_95, 1, quantile, probs = (1 - ci_level) / 2)
+    ci_upper_95 <- apply(boot_preds_95, 1, quantile, probs = 1 - (1 - ci_level) / 2)
+    
+    prediction_f <- apply(boot_preds_50, 1, median)  # Update point prediction
+    
+  }
+  
+  out <- list(
+    hat_f = prediction_f,
+    lower = lower,
+    upper = upper,
+    new_points = new_points
+  )
+  
+  if (CI) {
+    out$CI_lower_05 <- ci_lower_05
+    out$CI_upper_05 <- ci_upper_05
+    out$CI_lower_50 <- ci_lower_50
+    out$CI_upper_50 <- ci_upper_50
+    out$CI_lower_95 <- ci_lower_95
+    out$CI_upper_95 <- ci_upper_95
+  }
+  
+  return(out)
+}
+
+C_rho = function(Y0, rho, est0, est1, lambda=NULL, CI = FALSE){
+  mu0= est0$hat_f
+  mu1= est1$hat_f
+  lower0= est0$lower
+  upper0= est0$upper
+  lower1= est1$lower
+  upper1= est1$upper
+  CI_lower0 =  est0$hat_f- est0$CI_lower
+  CI_upper0 = est0$CI_upper- est0$hat_f
+  CI_lower1 =  est1$hat_f- est1$CI_lower
+  CI_upper1 = est1$CI_upper- est1$hat_f
+  
+  if(is.null(lambda)){
+    lambda = (upper1 - lower1)/(upper0 -  lower0)
+  }
+  mean = mu1 + lambda*rho*(Y0 - mu0)
+  lower = mean - sqrt(1-rho^2)*(mu1-lower1)
+  upper = mean + sqrt(1-rho^2)*(upper1-mu1)
+  if(CI){
+    lower = lower - CI_lower1- abs(rho)*(lambda*CI_lower0)
+    upper = upper + CI_upper1+ abs(rho)*(lambda*CI_upper0)
+  }
+  return(list(mean = mean, 
+              lower = lower, 
+              upper = upper,
+              lambda = lambda ))
+}
+
+
+
+
+
+
+
+
+# Fit CQR models
+est0 = CQR(X = X[treatment == 0, ], Y = Y[treatment == 0], new_points = new_points, CI = CI, B = 25)
+est1 = CQR(X = X[treatment == 1, ], Y = Y[treatment == 1], new_points = new_points, CI = CI, B = 25)
+
+
+
+
+#Pick pretty points
+#possibly you can choose
+#number=sample(1:200, 5)
+eligible_inds_all <- which(data$treatment == 0)
+X0 <- X[eligible_inds_all, 1]      # X1 for treated=0
+Y0 <- data$Y0[eligible_inds_all]   # Y0 for treated=0
+intervals <- list(
+  which(X0 < -0.6),
+  which(X0 >= -0.6 & X0 < -0.2),
+  which(X0 >= -0.2 & X0 < 0.2),
+  which(X0 >= 0.2 & X0 < 0.6),
+  which(X0 >= 0.6)
+)
+quantiles_to_use <- c(0.1, 0.5, 0.85, 0.93, 0.8)
+number <- c()  
+for (i in seq_along(intervals)) {
+  interval <- intervals[[i]]
+  
+  if (length(interval) == 0) next 
+  
+  Y0_in_interval <- Y0[interval]
+  desired_quantile <- quantiles_to_use[i]
+  Y0_quantile_value <- quantile(Y0_in_interval, desired_quantile)
+  
+  distances <- abs(Y0_in_interval - Y0_quantile_value)
+  best_point_relative <- which.min(distances)  # Index within interval
+  
+  number <- c(number, interval[best_point_relative])  # Save index relative to eligible_inds_all
+}
+
+#number=sample(1:200, 5)
+bg_total <- 500
+idx0_all <- which(treatment == 0)
+idx1_all <- which(treatment == 1)
+k0 <- min(floor(bg_total/2), length(idx0_all))
+k1 <- min(bg_total - k0,    length(idx1_all))
+bg_idx0 <- sample(idx0_all, k0)
+bg_idx1 <- sample(idx1_all, k1)
+
+# --- Global y-limits for consistent scales across panels ---
+y_limits <- range(c(
+  data$Y0[bg_idx0], data$Y1[bg_idx1],
+  est0$lower, est0$upper,
+  est1$lower, est1$upper
+), na.rm = TRUE)
+
+plot_for_rho <- function(rho_val) {
+  C <- C_rho(rho = rho_val, 
+             Y0 = data[treatment == 0, "Y0"],
+             est0, est1, 
+             lambda = lambda,
+             CI = FALSE)
+  
+  inds <- which(data$treatment == 0)[number]
+  
+  points_df <- data.frame(
+    X1 = X[inds, 1],
+    Y0 = data$Y0[inds],
+    Y1 = data$Y1[inds],
+    C_mean = C$mean[number],
+    C_lower = C$lower[number],
+    C_upper = C$upper[number],
+    group = "Y1hat",
+    group_y0 = "Y0factual"
+  )
+  
+  df0 <- data.frame(
+    X1 = est0$new_points$X1, mean = est0$hat_f,
+    lower = est0$lower, upper = est0$upper, group = "mu0"
+  )
+  df1 <- data.frame(
+    X1 = est1$new_points$X1, mean = est1$hat_f,
+    lower = est1$lower, upper = est1$upper, group = "mu1"
+  )
+  
+  # Base plot
+  p <- ggplot() +
+    # Background points: subtle, not in legend
+    geom_point(data = data.frame(X1 = X[bg_idx0, 1], Y = data$Y0[bg_idx0]),
+               aes(X1, Y), color = "blue", size = 0.9, alpha = 0.2, show.legend = FALSE) +
+    geom_point(data = data.frame(X1 = X[bg_idx1, 1], Y = data$Y1[bg_idx1]),
+               aes(X1, Y), color = "red", size = 0.9, alpha = 0.2, show.legend = FALSE) +
+    # Prediction intervals (lighter), then means on top
+    geom_ribbon(data = df0, aes(X1, ymin = lower, ymax = upper, fill = group), alpha = 0.18, colour = NA) +
+    geom_ribbon(data = df1, aes(X1, ymin = lower, ymax = upper, fill = group), alpha = 0.18, colour = NA) +
+    geom_line(data = df0, aes(X1, mean, color = group), linewidth = 1.0) +
+    geom_line(data = df1, aes(X1, mean, color = group), linewidth = 1.0) +
+    # Highlighted factual and predicted counterfactual
+    geom_point(data = points_df, aes(X1, Y0, shape = group_y0),
+               size = 3.8, stroke = 1, fill = "lightblue", color = "blue") +
+    geom_point(data = points_df, aes(X1, C_mean, shape = group),
+               color = "darkgreen", size = 3) +
+    geom_errorbar(data = points_df, aes(X1, ymin = C_lower, ymax = C_upper, linetype = "Crho"),
+                  color = "darkgreen", width = 0.05, linewidth = 0.8) +
+    coord_cartesian(ylim = y_limits) +
+    labs(
+      title = bquote(rho == .(rho_val)),
+      x = "X",
+      y = "Outcome Y(T)",
+      color = "", fill = "", shape = "", linetype = ""
+    ) +
+    # Slightly desaturated, consistent colors
+    scale_color_manual(values = c("mu0" = "#3366CC", "mu1" = "#CC5544"),
+                       labels = c("mu0" = expression(hat(mu)[0]), "mu1" = expression(hat(mu)[1]))) +
+    scale_fill_manual(
+      values = c("mu0" = "#3366CC", "mu1" = "#CC5544"),
+      labels = c("mu0" = expression(tilde(C)(0)), "mu1" = expression(tilde(C)(1)))
+    )+
+    scale_shape_manual(values = c("Y1hat" = 15, "Y0factual" = 17),
+                       labels = c("Y1hat" = expression(hat(Y)(1) ~ "(predicted counterfactual)"),
+                                  "Y0factual" = expression(Y(0) ~ "(factual)"))) +
+    scale_linetype_manual(values = c("Crho" = "solid"),
+                          labels = c("Crho" = expression(C[rho]))) +
+    guides(
+      linetype = guide_legend(order = 1),
+      fill     = guide_legend(order = 2, override.aes = list(alpha = 0.18)),
+      color    = guide_legend(order = 3, override.aes = list(linewidth = 1.2)),
+      shape    = guide_legend(order = 4, override.aes = list(size = 3.2))
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      legend.position = "right",
+      legend.box = "vertical",
+      legend.spacing.y = unit(0.2, "cm"),
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 12.5),
+      panel.grid.minor = element_blank()
+    )
+  
+  # --- Tiny in-panel "T=0 / T=1" legend (not part of ggplot legend) ---
+  xr <- range(c(df0$X1, df1$X1), na.rm = TRUE)
+  yr <- y_limits
+  dx <- diff(xr); dy <- diff(yr)
+  x0 <- xr[1] + 0.03 * dx      # top-left corner placement
+  y0 <- yr[2] - 0.06 * dy
+  y1 <- yr[2] - 0.15 * dy
+  
+  p +
+    annotate("rect",
+             xmin = x0 - 0.01*dx, xmax = x0 + 0.16*dx,
+             ymin = y1 - 0.03*dy, ymax = y0 + 0.03*dy,
+             fill = "white", alpha = 0.6, color = NA) +
+    annotate("point", x = x0, y = y0, size = 2.5, color = "blue") +
+    annotate("text",  x = x0 + 0.02*dx, y = y0, label = "T=0",
+             hjust = 0, vjust = 0.3, size = 3.2) +
+    annotate("point", x = x0, y = y1, size = 2.5, color = "red") +
+    annotate("text",  x = x0 + 0.02*dx, y = y1, label = "T=1",
+             hjust = 0, vjust = 0.3, size = 3.2)
+}
+
+# --- Three panels, y-axis only on the first ---
+rhos <- c(0, 0.5, 0.95)
+plots <- lapply(rhos, plot_for_rho)
+
+for (i in 2:length(plots)) {
+  plots[[i]] <- plots[[i]] +
+    theme(axis.title.y = element_blank(),
+          axis.text.y  = element_blank())
+}
+
+combined_plot <- (plots[[1]] + plots[[2]] + plots[[3]]) +
+  plot_layout(guides = "collect") +
+  plot_annotation(
+    title = "Predicted counterfactuals: point estimates and prediction intervals"
+  ) &
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 15),
+    panel.spacing.x = unit(8, "pt")
+  )
+
+print(combined_plot)
+
+# --- Export: crisp PDF for print ---
+ggsave("predicted_counterfactuals.pdf", combined_plot,
+       device = cairo_pdf, width = 9, height = 4,  dpi = 500)
