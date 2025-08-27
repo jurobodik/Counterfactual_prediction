@@ -30,17 +30,6 @@ The method combines Conformal Quantile Regression (CQR) with bootstrap aggregati
 
 ---
 
-### **High-level idea**
-
-```
-Observed outcome Y_obs
-          |
-          v
- Estimate E[Y_cf | X, T, ρ] + prediction intervals
-```
-
----
-
 ## **Installation**
 
 Clone the repository and install dependencies:
