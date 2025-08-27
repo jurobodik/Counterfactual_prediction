@@ -5,7 +5,7 @@
 
 This repository provides **R and Python implementations** of the method for estimating **counterfactual outcomes and prediction intervals** under a cross-world assumption parameterized by ρ ∈ \[-1, 1].
 The method combines Conformal Quantile Regression (CQR) with bootstrap aggregation for robust uncertainty quantification.
----
+
 
 ## **What is C\_rho function?**
 
