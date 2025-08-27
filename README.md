@@ -60,7 +60,7 @@ Functions:
 * `show_all_results()` — Visualization & evaluation
   Defined in:
 * **`Main_function.R`** (core C_rho() function)
-* **`helpers.R`** (utilities)
+* **`helpers.R`** (utilities such as data_synthetic() function)
 
 ### **Example**
 
