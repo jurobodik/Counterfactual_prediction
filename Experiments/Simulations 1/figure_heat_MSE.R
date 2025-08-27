@@ -1,6 +1,6 @@
 # ==== MSE rank heatmap (legend right + flattened rows) ====
 
-mse_final <- read.csv("mse_wide_incremental.csv", stringsAsFactors = FALSE)
+mse_final <- read.csv("MSE_results.csv", stringsAsFactors = FALSE)
 
 library(dplyr)
 library(tidyr)
@@ -221,3 +221,4 @@ p_split + plot_layout(guides = "collect") & theme(legend.position = "bottom")
 
 # Save plot
 #ggsave("MSE_heat_v2.pdf", width = 8.5, height = 6, dpi = 500)
+
