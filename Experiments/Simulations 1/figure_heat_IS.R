@@ -1,4 +1,5 @@
-# ==== MSE rank heatmap (legend right + flattened rows) ====
+# ==== IS rank heatmap (legend right + flattened rows) ====
+# Same as MSE_results.R but changed titles and modified the GANITE coloring
 mse_final <- read.csv("intervalscore_results.csv", stringsAsFactors = FALSE)
 
 library(dplyr)
