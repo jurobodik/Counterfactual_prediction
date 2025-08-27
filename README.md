@@ -186,4 +186,11 @@ print(f"Coverage: {coverage:.3f}")
 
 ## **Experiments**
 
-TODO
+All experiments are fully reproducible - just run the main scripts. There are two small things you have to do first:
+* in helpers.R file there is a script to load IHDP and Twins datasets. You have to download the .csv files and put correct path for it to work
+* I was using reticulate package to run GANITE (python function) in R. For function ganite() to work, you have to figure out how to upload the python file to work in R
+
+
+## **Questions?**
+Do not hesitate to contact me at juraj.bodik@unil.ch
+
