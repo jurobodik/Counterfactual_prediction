@@ -30,8 +30,8 @@ library(randomForest)       # mean/prob RF
 # --------------------------------------------------------------------
 C_rho <- function(X, treatment, Y_obs, 
                   rho, 
-                  bootstraps_for_stable_lambda = 1,
-                  bootstraps_for_mu = 20, 
+                  bootstraps_for_stable_lambda = 5,
+                  bootstraps_for_mu = 50, 
                   lambda = NULL, 
                   CI = FALSE, 
                   desired_coverage = 0.9,
