@@ -190,7 +190,7 @@ p_split <- ggplot(ranked, aes(x = method, y = scenario, fill = rank_cat)) +
   geom_text(aes(label = label_str), size = 2.6) +
   scale_x_discrete(labels = function(x) {
     out <- dplyr::case_when(
-      x == "mu_rho (combined)" ~ "atop(mu[rho], rho[correct]~'/'~rho[misspec])",
+      x == "mu_rho (combined)" ~ "atop(C[rho]^+CI, rho[correct]~'/'~rho[misspec])",
       x == "DO"                ~ "atop('DO', scriptstyle(italic('(CQR)')))",
       x == "CATE_adj"          ~ "atop('cate-adj', scriptstyle(italic('(T-learner)'))) ",
       x == "matching"          ~ "atop('matching', scriptstyle(italic('(Mah. dist.)')))",
