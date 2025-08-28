@@ -7,6 +7,7 @@ This repository provides R and Python implementations of the method for estimati
 The method combines Conformal Quantile Regression (CQR) with bootstrap aggregation for robust uncertainty quantification.
 
 <img width="583" height="259" alt="image" src="https://github.com/user-attachments/assets/e40969a4-e702-4370-8eed-6206838e4bb7" />
+<img width="1052" height="473" alt="image" src="https://github.com/user-attachments/assets/00e180b1-1541-4b6b-ad89-74c8a593beae" />
 
 
 ## **What is C\_rho function and how to use it?**
