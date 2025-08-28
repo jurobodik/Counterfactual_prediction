@@ -164,7 +164,7 @@ twins_data_cached <- .make_data("Twins", n = NA, d = NA, rho = NA)
   # 1) C_rho (true rho)
   cr <- .safe(C_rho(
     X = X, treatment = T, Y_obs = Y, rho = rho,
-    bootstraps_for_stable_lambda = 5, bootstraps_for_mu = 25,
+    bootstraps_for_stable_lambda = 5, bootstraps_for_mu = 50,
     CI = TRUE
   ))
   met <- if (!is.null(cr)) .get_metrics(cr$cf, Y_cf_true, cr$lower, cr$upper) else list(MSE=NA,IntervalScore=NA,Coverage=NA,AvgWidth=NA,QuantileLoss=NA)
@@ -174,7 +174,7 @@ twins_data_cached <- .make_data("Twins", n = NA, d = NA, rho = NA)
   rho_mod <- pmin(1, pmax(0, rho + runif(1, -0.5, 0.5)))  # clip to [0,1]
   crp <- .safe(C_rho(
     X = X, treatment = T, Y_obs = Y, rho = rho_mod,
-    bootstraps_for_stable_lambda = 5, bootstraps_for_mu = 25,
+    bootstraps_for_stable_lambda = 5, bootstraps_for_mu = 50,
     CI = TRUE))
   met <- if (!is.null(crp)) .get_metrics(crp$cf, Y_cf_true, crp$lower, crp$upper) else list(MSE=NA,IntervalScore=NA,Coverage=NA,AvgWidth=NA,QuantileLoss=NA)
   rows[["C_rho_rhoPerturbed"]] <- met
@@ -382,3 +382,4 @@ cat("Cumulative agg CSV: ", agg_csv_path, "\n", sep = "")
 cat("Checkpoint info: ", last_checkpoint, "\n", sep = "")
 
 mse_wide           
+
