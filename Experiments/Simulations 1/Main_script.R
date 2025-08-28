@@ -22,7 +22,7 @@ INCLUDE_GANITE <- TRUE         # set FALSE if Python GANITE isn't available
 # Order is preserved. n for Twins/IHDP is read from data; the 'n' here is just informative.
 setups <- list(
   # Twins (ρ = 0.75 only; two d values)
-  list(DGP = "Twins",     n = 11984L, d = 10L, rho = 0.5),
+  list(DGP = "Twins",     n = 11984L, d = 71L, rho = 0.5),
   list(DGP = "Twins",     n = 11984L, d = 10L, rho = 0.5),
   list(DGP = "Twins",     n = 11984L, d =  1L, rho = 0.5),
   
@@ -382,4 +382,5 @@ cat("Cumulative agg CSV: ", agg_csv_path, "\n", sep = "")
 cat("Checkpoint info: ", last_checkpoint, "\n", sep = "")
 
 mse_wide           
+
 
