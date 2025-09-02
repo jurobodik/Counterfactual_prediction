@@ -1,5 +1,5 @@
 #Figure: C_rho for different rho values 
-#Probably most libraries are not needed
+#Probably not all libraries are neccesary here
 library(MASS)
 library(qgam)
 library(ggplot2)
@@ -24,7 +24,7 @@ library(mgcv)               # mean/prob GAM
 library(randomForest)       # mean/prob RF
 library(readxl)
 
-set.seed(2)
+set.seed(12345)
 
 rho_true = 0.5
 n <- 5000
@@ -526,7 +526,6 @@ combined_plot <- (plots[[1]] + plots[[2]] + plots[[3]]) +
   )
 
 print(combined_plot)
-
 # --- Export: crisp PDF for print ---
 ggsave("predicted_counterfactuals.pdf", combined_plot,
        device = cairo_pdf, width = 9, height = 4,  dpi = 500)
