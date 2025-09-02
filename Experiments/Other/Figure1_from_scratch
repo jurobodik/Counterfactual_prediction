@@ -1,10 +1,29 @@
 #Figure: C_rho for different rho values 
+#Probably most libraries are not needed
 library(MASS)
 library(qgam)
 library(ggplot2)
 library(quantregForest)
 library(patchwork)
 library(grid) 
+library(MASS)
+library(akima)
+library(rgl)
+library(raster)
+library(ambient)
+library(dplyr)      
+library(plotly)
+library(ggplot2)
+library(gridExtra)
+library(forcats)
+library(patchwork)
+library(purrr)
+library(grid)
+library(copula)
+library(mgcv)               # mean/prob GAM
+library(randomForest)       # mean/prob RF
+library(readxl)
+
 set.seed(2)
 
 rho_true = 0.5
@@ -15,13 +34,13 @@ CI = FALSE
 
 
 data_synthetic_for_picture <- function(n = 1000, 
-                           d = 2, 
-                           rho, 
-                           sigma_1 = 1, 
-                           sigma_2 = 4, 
-                           constant_propensity = FALSE, 
-                           copula_type = "gaussian", #choices: "gaussian", "clayton", "t", "gumbel"
-                           marginal = "gaussian"){ #choices: "gaussian", "laplace", "t", "laplace", "chisq"
+                                       d = 2, 
+                                       rho, 
+                                       sigma_1 = 1, 
+                                       sigma_2 = 4, 
+                                       constant_propensity = FALSE, 
+                                       copula_type = "gaussian", #choices: "gaussian", "clayton", "t", "gumbel"
+                                       marginal = "gaussian"){ #choices: "gaussian", "laplace", "t", "laplace", "chisq"
   # generate random 1D and 2D functions
   random_function_1d <- function(freq = 0.1) {
     s = seq(-10, 10, length.out = 1001)
@@ -132,7 +151,7 @@ data_synthetic_for_picture <- function(n = 1000,
 
 
 data = data_synthetic_for_picture(n = n, d = d, rho = rho_true,
-                      constant_propensity = TRUE, sigma_1=1, sigma_2 = 4)
+                                  constant_propensity = TRUE, sigma_1=1, sigma_2 = 4)
 
 X <- as.data.frame(data[, 1:d])  
 treatment <- data$treatment
@@ -460,6 +479,7 @@ plot_for_rho <- function(rho_val) {
     theme(
       legend.position = "right",
       legend.box = "vertical",
+      legend.text = element_text(size = 12),
       legend.spacing.y = unit(0.2, "cm"),
       plot.title = element_text(hjust = 0.5, face = "bold", size = 12.5),
       panel.grid.minor = element_blank()
@@ -498,9 +518,7 @@ for (i in 2:length(plots)) {
 
 combined_plot <- (plots[[1]] + plots[[2]] + plots[[3]]) +
   plot_layout(guides = "collect") +
-  plot_annotation(
-    title = "Predicted counterfactuals: point estimates and prediction intervals"
-  ) &
+  plot_annotation() &
   theme(
     legend.position = "bottom",
     plot.title = element_text(hjust = 0.5, face = "bold", size = 15),
