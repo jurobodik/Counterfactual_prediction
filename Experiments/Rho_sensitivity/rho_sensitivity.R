@@ -122,10 +122,11 @@ results_n1 <- results_n1 %>% mutate(n = n1)
 results_n2 <- results_n2 %>% mutate(n = n2)
 
 combined <- bind_rows(results_n1, results_n2) %>%
-  mutate(
-    rho_est = factor(rho_est, levels = rho_est_vals),   # ensure increasing order
-    rho_dgp = factor(rho_dgp, levels = rho_dgp_vals)
+mutate(
+    rho_est = factor(rho_est, levels = rho_est_vals),
+    rho_dgp = fct_rev(factor(rho_dgp, levels = rho_dgp_vals)) 
   )
+
 
 fill_limits <- range(combined$gap_mean, na.rm = TRUE)
 
@@ -166,5 +167,6 @@ p_facets <- ggplot(combined, aes(x = rho_est, y = rho_dgp, fill = gap_mean)) +
   )
 
 print(p_facets)
+
 
 ggsave("rho_misspec_plot.pdf", p_facets, width = 6, height = 3.2)
