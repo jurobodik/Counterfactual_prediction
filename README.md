@@ -1,4 +1,4 @@
-# **Counterfactual Estimation with Cross-World Assumptions**
+# **Counterfactual Estimation with Cross-World Dependence**
 
 [![R](https://img.shields.io/badge/R-available-blue)]()
 [![Python](https://img.shields.io/badge/Python-available-green)]()
@@ -189,5 +189,5 @@ All experiments are fully reproducible - just run the main scripts. There are tw
 
 
 ## **Questions?**
-Do not hesitate to contact me at juraj.bodik@unil.ch
+Do not hesitate to contact me!
 
