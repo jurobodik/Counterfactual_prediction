@@ -27,7 +27,7 @@ The method combines Conformal Quantile Regression (CQR) with bootstrap aggregati
 **Output:**
 
 * `cf` — Predicted counterfactual mean
-* `lower`, `upper` — Prediction intervals for the counterfactual outcome
+* `lower`, `upper` — Prediction intervals for the counterfactual outcome with `desired_coverage`.
 
 ---
 
