@@ -188,5 +188,5 @@ All experiments are fully reproducible - just run the main scripts. There are tw
 
 
 ## **Questions?**
-Do not hesitate to contact me!
+Do not hesitate to contact me! My contact info can be found at www.jurajbodik.com
 
