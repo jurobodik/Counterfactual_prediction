@@ -3,7 +3,7 @@
 [![R](https://img.shields.io/badge/R-available-blue)]()
 [![Python](https://img.shields.io/badge/Python-available-green)]()
 
-This repository provides R and Python implementations of the method for estimating **counterfactual outcomes and prediction intervals** under a cross-world assumption parameterized by ρ ∈ \[-1, 1].
+This repository provides R and Python implementations of the **RCP(ρ)** method for estimating **counterfactual outcomes and prediction intervals** under a cross-world assumption parameterized by ρ ∈ \[-1, 1].
 The method combines Conformal Quantile Regression (CQR) with bootstrap aggregation for robust uncertainty quantification.
 
 <img width="486" height="243" alt="image" src="https://github.com/user-attachments/assets/f7780037-91ee-41d7-a43c-383b405fc0ac" />
