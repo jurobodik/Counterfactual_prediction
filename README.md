@@ -1,4 +1,4 @@
-# **Counterfactual Estimation with Cross-World Dependence**
+# **Retrospective Counterfactual Prediction by Conditioning on the Factual Outcome: A Cross-World Approach**
 
 [![R](https://img.shields.io/badge/R-available-blue)]()
 [![Python](https://img.shields.io/badge/Python-available-green)]()
@@ -6,7 +6,7 @@
 This repository provides R and Python implementations of the method for estimating **counterfactual outcomes and prediction intervals** under a cross-world assumption parameterized by ρ ∈ \[-1, 1].
 The method combines Conformal Quantile Regression (CQR) with bootstrap aggregation for robust uncertainty quantification.
 
-<img width="1052" height="473" alt="image" src="https://github.com/user-attachments/assets/00e180b1-1541-4b6b-ad89-74c8a593beae" />
+<img width="486" height="243" alt="image" src="https://github.com/user-attachments/assets/f7780037-91ee-41d7-a43c-383b405fc0ac" />
 
 
 ## **What is C\_rho function and how to use it?**
