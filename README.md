@@ -22,7 +22,6 @@ The method combines Conformal Quantile Regression (CQR) with bootstrap aggregati
 * A user-specified **cross-world parameter** `ρ` that controls dependence between potential outcomes:
   * `ρ = 0` → No cross-world coupling (independence)
   * `ρ = 1` → Strong coupling (`Y(1)` ≈ linear function of `Y(0)`)
-  * Negative ρ values allow for anti-correlation scenarios (usually very unrealistic)
 
 
 **Output:**
